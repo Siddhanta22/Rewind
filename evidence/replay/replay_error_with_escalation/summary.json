@@ -1,0 +1,14 @@
+{
+  "result": {
+    "status": "hard_failure",
+    "outputs": {},
+    "outcome_id": null,
+    "failure_detail": {
+      "step_index": null,
+      "expected": "Heading indicating successful login and account services area reached. Manually dropped a second, unsatisfiable element_visible condition with no locator that discovery self-reported - see project memory.",
+      "observed_url": "https://parabank.parasoft.com/parabank/index.htm",
+      "observed_text_snippet": "Experience the difference\n\nSolutions\nAbout Us\nServices\nProducts\nLocations\nAdmin Page\nhome\nabout\ncontact\nCustomer Login\n\nUsername\n\nPassword\n\nForgot login info?\n\nRegister\n\n\u00a0\nATM Services\nWithdraw Funds\nTransfer Funds\nCheck Balances\nMake Deposits\nOnline Services\nBill Pay\nAccount History\nTransfer Funds\n"
+    }
+  },
+  "note": "Locator deliberately broken to demonstrate error detection + escalation - see step 0 reasoning in the artifact snapshot used for this run."
+}

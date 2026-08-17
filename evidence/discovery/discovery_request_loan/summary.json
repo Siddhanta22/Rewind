@@ -1,0 +1,24 @@
+{
+  "status": "success",
+  "finish_payload": {
+    "status": "success",
+    "summary": "Submitted a loan request for $1000 with a $500 down payment from account 13455. The request was processed and the result page shows Status: Denied, with reason \"You do not have sufficient funds for the given down payment.\"",
+    "checkpoint_conditions": [
+      {
+        "kind": "text_present",
+        "text": "Loan Request Processed",
+        "description": "Heading confirming the loan request was processed"
+      },
+      {
+        "kind": "text_present",
+        "text": "Status:",
+        "description": "Status field showing approval/denial outcome"
+      }
+    ],
+    "successful_step_indices": [
+      1,
+      2,
+      3
+    ]
+  }
+}

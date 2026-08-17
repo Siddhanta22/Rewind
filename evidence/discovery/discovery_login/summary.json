@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "finish_payload": {
+    "status": "success",
+    "summary": "Logged into ParaBank using provided username/password tokens and confirmed arrival at the logged-in Accounts Overview page.",
+    "successful_step_indices": [
+      1,
+      2,
+      3
+    ],
+    "checkpoint_conditions": [
+      {
+        "kind": "text_present",
+        "text": "Accounts Overview",
+        "description": "Heading 'Accounts Overview' indicates successful login into account services area."
+      }
+    ]
+  }
+}

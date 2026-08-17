@@ -1,0 +1,73 @@
+{
+  "capability_id": "login",
+  "version": 1,
+  "description": "Log in to ParaBank so an authenticated session exists for other capabilities to run in.",
+  "target": {
+    "base_url": "https://parabank.parasoft.com/parabank/index.htm",
+    "description": "Log in to ParaBank so an authenticated session exists for other capabilities to run in."
+  },
+  "inputs": [
+    {
+      "name": "username",
+      "type": "string",
+      "required": true,
+      "description": "ParaBank login username"
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "required": true,
+      "description": "ParaBank login password"
+    }
+  ],
+  "outputs": [],
+  "steps": [
+    {
+      "index": 1,
+      "action": "fill",
+      "locator": {
+        "strategy": "css",
+        "value": "input[name=\"username\"]",
+        "fallback": null,
+        "reasoning": "Input has name attribute username, unique on page."
+      },
+      "value": "{username}",
+      "description": "Input has name attribute username, unique on page."
+    },
+    {
+      "index": 2,
+      "action": "fill",
+      "locator": {
+        "strategy": "css",
+        "value": "input[name=\"password\"]",
+        "fallback": null,
+        "reasoning": "Input has name attribute password, unique on page."
+      },
+      "value": "{password}",
+      "description": "Input has name attribute password, unique on page."
+    },
+    {
+      "index": 3,
+      "action": "click",
+      "locator": {
+        "strategy": "css",
+        "value": "input[type=\"submit\"]",
+        "fallback": null,
+        "reasoning": "Submit button logs in with filled credentials."
+      },
+      "value": null,
+      "description": "Submit button logs in with filled credentials."
+    }
+  ],
+  "checkpoint": [
+    {
+      "kind": "text_present",
+      "text": "Accounts Overview",
+      "locator": null,
+      "pattern": null,
+      "description": "Heading 'Accounts Overview' indicates successful login and access to account services area"
+    }
+  ],
+  "known_outcomes": [],
+  "created_from_run": "discovery_login_20260816T231852"
+}

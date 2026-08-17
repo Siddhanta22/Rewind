@@ -1,0 +1,10 @@
+{"ts": "2026-08-16T23:12:51.906430+00:00", "event": "replay_start", "capability_id": "login", "params": {"username": "ifaidiscovery0816", "password": "***REDACTED***"}}
+{"ts": "2026-08-16T23:12:54.042282+00:00", "event": "step_ok", "step_index": 1, "action": "fill"}
+{"ts": "2026-08-16T23:12:55.119675+00:00", "event": "step_ok", "step_index": 2, "action": "fill"}
+{"ts": "2026-08-16T23:12:57.499494+00:00", "event": "step_ok", "step_index": 3, "action": "click"}
+{"ts": "2026-08-16T23:12:57.528815+00:00", "event": "replay_success", "outputs": {}, "escalated": false}
+{"ts": "2026-08-16T23:12:57.530113+00:00", "event": "replay_start", "capability_id": "request_loan", "params": {"loan_amount": "1000", "down_payment": "900", "from_account_id": "13455"}}
+{"ts": "2026-08-16T23:12:59.230933+00:00", "event": "step_ok", "step_index": 1, "action": "fill"}
+{"ts": "2026-08-16T23:13:00.240727+00:00", "event": "step_ok", "step_index": 2, "action": "fill"}
+{"ts": "2026-08-16T23:13:01.275993+00:00", "event": "step_ok", "step_index": 3, "action": "click"}
+{"ts": "2026-08-16T23:13:01.287738+00:00", "event": "replay_success", "outputs": {"status": "Denied"}, "escalated": false}
