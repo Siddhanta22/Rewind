@@ -14,6 +14,7 @@ from playwright.sync_api import Page
 from pydantic import BaseModel
 
 from src.observability.logger import EvidenceLogger
+from src.page_utils import safe_text_snippet
 
 
 class InterventionContext(BaseModel):
@@ -54,7 +55,7 @@ def request_intervention(
     input("Press Enter once you've resolved this and want automation to resume... ")
 
     new_url = page.url
-    new_text = _safe_text_snippet(page)
+    new_text = safe_text_snippet(page)
     evidence.log_event("intervention_resumed", resumed_at_url=new_url)
 
     return InterventionOutcome(
@@ -62,10 +63,3 @@ def request_intervention(
         new_text_snippet=new_text,
         page_changed=(new_url != context.current_url or new_text != context.text_snippet),
     )
-
-
-def _safe_text_snippet(page: Page, max_chars: int = 500) -> str:
-    try:
-        return page.locator("body").inner_text()[:max_chars]
-    except Exception:
-        return ""

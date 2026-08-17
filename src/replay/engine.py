@@ -2,18 +2,19 @@
 Playwright execution, no LLM, then classifies the result into exactly one
 of success / known_outcome / hard_failure. See REPORT.md, "Determinism &
 error handling".
-
-Note: pausing for human confirmation on risky steps (safety.
-requires_human_confirmation) is NOT wired in yet - that depends on the
-escalation module, built next. Deliberate, not an oversight.
 """
 
 from playwright.sync_api import Page
 
 from src.escalation.handoff import InterventionContext, request_intervention
 from src.observability.logger import EvidenceLogger
+from src.page_utils import safe_text_snippet
 from src.safety.config import SafetyConfig
-from src.safety.enforcement import check_action_allowed, check_url_allowed, requires_human_confirmation
+from src.safety.enforcement import (
+    check_action_allowed,
+    check_url_allowed,
+    requires_human_confirmation,
+)
 from src.schema import Artifact, Step
 
 from .checkpoint import evaluate_condition
@@ -87,7 +88,7 @@ def replay(
                     step_index=step.index,
                     expected=step.description,
                     observed_url=page.url,
-                    observed_text_snippet=_safe_text_snippet(page),
+                    observed_text_snippet=safe_text_snippet(page, max_chars=300),
                 ),
             )
         evidence.log_event("step_ok", step_index=step.index, action=step.action)
@@ -121,7 +122,7 @@ def replay(
                     step_index=None,
                     expected="; ".join(c.description for c in artifact.checkpoint),
                     observed_url=page.url,
-                    observed_text_snippet=_safe_text_snippet(page),
+                    observed_text_snippet=safe_text_snippet(page, max_chars=300),
                 ),
             )
 
@@ -135,7 +136,7 @@ def replay(
                 step_index=None,
                 expected=str(e),
                 observed_url=page.url,
-                observed_text_snippet=_safe_text_snippet(page),
+                observed_text_snippet=safe_text_snippet(page, max_chars=300),
             ),
         )
 
@@ -153,7 +154,7 @@ def _escalate(
         reason=reason,
         step_index=step_index,
         current_url=page.url,
-        text_snippet=_safe_text_snippet(page),
+        text_snippet=safe_text_snippet(page, max_chars=300),
     )
     request_intervention(page, context, evidence)
 
@@ -212,10 +213,3 @@ def _execute_step(page: Page, step: Step, params: dict, safety: SafetyConfig) ->
     # equivalent delay, so it needs this explicit buffer. Found via live
     # testing - see project memory.
     page.wait_for_timeout(1000)
-
-
-def _safe_text_snippet(page: Page, max_chars: int = 300) -> str:
-    try:
-        return page.locator("body").inner_text()[:max_chars]
-    except Exception:
-        return ""
