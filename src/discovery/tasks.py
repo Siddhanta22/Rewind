@@ -1,12 +1,20 @@
 """The two concrete discovery tasks for this project: login (composed
 before any account-services capability) and request_loan (the capability
 itself). Real target URLs and example values, verified against the live
-site during design. See REPORT.md, "Architecture" for why login is separate.
+site. See REPORT.md, "Architecture" for why login is separate.
 """
+
+import os
+
+from dotenv import load_dotenv
 
 from src.schema import ParamSpec
 
 from .task import DiscoveryInput, DiscoveryTask
+
+# The demo app's database resets periodically, so the account number can't be
+# hardcoded - it comes from .env (PARABANK_ACCOUNT_ID).
+load_dotenv()
 
 TASKS: dict[str, DiscoveryTask] = {
     "login": DiscoveryTask(
@@ -40,7 +48,7 @@ TASKS: dict[str, DiscoveryTask] = {
                             description="Requested loan amount, USD"),
             DiscoveryInput(name="down_payment", value="500", param_type="number",
                             description="Down payment amount, USD"),
-            DiscoveryInput(name="from_account_id", value="13455", param_type="string",
+            DiscoveryInput(name="from_account_id", value=os.environ.get("PARABANK_ACCOUNT_ID", ""), param_type="string",
                             description="Account to associate with the request"),
         ],
         outputs=[

@@ -1,13 +1,12 @@
 """The Claude tool-use loop: observe -> decide -> act -> repeat, until
-Claude calls finish() or a stop condition fires. See REPORT.md, "Architecture",
-and the interface-ai-assignment project memory for why several of these
-choices (form-element grounding, first-tool-call-only) came from live testing,
-not just design on paper.
+Claude calls finish() or a stop condition fires. Several choices here
+(form-element grounding, first-tool-call-only) came from live testing, not
+just design on paper - see REPORT.md, "Architecture".
 """
 
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
@@ -26,10 +25,18 @@ MODEL = "claude-sonnet-5"
 
 
 @dataclass
+class Usage:
+    api_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+@dataclass
 class LoopResult:
     status: str  # "success" | "stuck"
     finish_payload: dict[str, Any] | None
     steps_taken: int
+    usage: Usage = field(default_factory=Usage)
 
 
 def run_tool_loop(
@@ -58,6 +65,7 @@ def run_tool_loop(
 
     start_time = time.monotonic()
     turn = 0
+    usage = Usage()
     # Gives a human exactly one chance to help per run, so a run that stays
     # stuck even after intervention doesn't pause forever.
     escalated = False
@@ -68,15 +76,18 @@ def run_tool_loop(
         # calls a tool can't loop forever.
         if turn >= task.max_steps:
             evidence.log_event("loop_stopped", reason="max_steps_exceeded", steps=turn)
-            return LoopResult(status="stuck", finish_payload=None, steps_taken=turn)
+            return LoopResult(status="stuck", finish_payload=None, steps_taken=turn, usage=usage)
         if time.monotonic() - start_time > task.timeout_s:
             evidence.log_event("loop_stopped", reason="timeout", steps=turn)
-            return LoopResult(status="stuck", finish_payload=None, steps_taken=turn)
+            return LoopResult(status="stuck", finish_payload=None, steps_taken=turn, usage=usage)
         turn += 1
 
         response = client.messages.create(
             model=MODEL, max_tokens=1024, system=system_prompt, tools=TOOLS, messages=messages
         )
+        usage.api_calls += 1
+        usage.input_tokens += response.usage.input_tokens
+        usage.output_tokens += response.usage.output_tokens
 
         tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
         if not tool_use_blocks:
@@ -112,9 +123,8 @@ def run_tool_loop(
                 escalated = True
 
                 # Feed the human's help back in as this turn's tool_result,
-                # then let the SAME loop continue - the literal "pause,
-                # cede control, resume" the spec asks for, not just
-                # pause-and-give-up.
+                # then let the SAME loop continue - a real pause, cede
+                # control, resume, not just pause-and-give-up.
                 fresh_observation = tools.read_state().observation
                 tool_result_blocks = [
                     {
@@ -138,7 +148,9 @@ def run_tool_loop(
                 messages.append({"role": "user", "content": tool_result_blocks})
                 continue
 
-            return LoopResult(status=status, finish_payload=call.input, steps_taken=turn)
+            return LoopResult(
+                status=status, finish_payload=call.input, steps_taken=turn, usage=usage
+            )
 
         result = _execute(tools, call.name, call.input)
 
