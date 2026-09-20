@@ -12,7 +12,7 @@ from src.schema import Condition
 from .locators import LocatorResolutionError, resolve_locator
 
 
-def evaluate_condition(page: Page, condition: Condition) -> bool:
+def evaluate_condition(page: Page, condition: Condition, timeout_ms: int = 3000) -> bool:
     if condition.kind == "text_present":
         if not condition.text:
             return False
@@ -26,7 +26,7 @@ def evaluate_condition(page: Page, condition: Condition) -> bool:
         if condition.locator is None:
             return False
         try:
-            resolve_locator(page, condition.locator)
+            resolve_locator(page, condition.locator, timeout_ms=timeout_ms)
             return True
         except LocatorResolutionError:
             return False

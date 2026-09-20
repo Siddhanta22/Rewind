@@ -4,6 +4,8 @@ of success / known_outcome / hard_failure. See REPORT.md, "Determinism &
 error handling".
 """
 
+import time
+
 from playwright.sync_api import Page
 
 from src.escalation.handoff import InterventionContext, request_intervention
@@ -22,6 +24,10 @@ from .extractors import extract_outputs
 from .locators import resolve_locator
 from .result import FailureDetail, ReplayResult
 from .substitution import substitute
+
+END_STATE_TIMEOUT_MS = 5000
+POLL_INTERVAL_MS = 100
+POLL_CONDITION_TIMEOUT_MS = 200
 
 
 def replay(
@@ -92,6 +98,9 @@ def replay(
                 ),
             )
         evidence.log_event("step_ok", step_index=step.index, action=step.action)
+
+    if not escalated:
+        _wait_for_end_state(page, artifact)
 
     # Known outcomes checked before the checkpoint - a loose checkpoint
     # match could otherwise coincidentally overlap with a known-outcome page.
@@ -202,14 +211,31 @@ def _execute_step(page: Page, step: Step, params: dict, safety: SafetyConfig) ->
     else:
         raise ValueError(f"Unknown step action: {step.action}")
 
-    try:
-        page.wait_for_load_state("networkidle", timeout=5000)
-    except Exception:
-        pass  # not every action triggers navigation
-    # networkidle alone isn't reliable for AJAX-driven updates (e.g.
-    # ParaBank's "Apply Now" button) - it can return before the resulting
-    # DOM update actually finishes rendering. During discovery this was
-    # masked by the natural delay of Claude's next API call; replay has no
-    # equivalent delay, so it needs this explicit buffer. Found via live
-    # testing - see project memory.
-    page.wait_for_timeout(1000)
+
+def _wait_for_end_state(
+    page: Page, artifact: Artifact, timeout_ms: int = END_STATE_TIMEOUT_MS
+) -> bool:
+    """Poll until the page shows something replay can classify: a known
+    outcome, or every checkpoint condition. True if it got there in time.
+
+    This replaces a fixed sleep. networkidle can return before an AJAX-driven
+    update (e.g. ParaBank's "Apply Now") finishes rendering, and discovery
+    never hit that because Claude's next API call added enough delay. Between
+    steps no wait is needed: each step's locator waits for its own element.
+    If the state never appears, the normal checks in replay() report the
+    failure."""
+    deadline = time.monotonic() + timeout_ms / 1000
+    while True:
+        outcome_seen = any(
+            evaluate_condition(page, rule.when, timeout_ms=POLL_CONDITION_TIMEOUT_MS)
+            for rule in artifact.known_outcomes
+        )
+        checkpoint_seen = all(
+            evaluate_condition(page, c, timeout_ms=POLL_CONDITION_TIMEOUT_MS)
+            for c in artifact.checkpoint
+        )
+        if outcome_seen or checkpoint_seen:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        page.wait_for_timeout(POLL_INTERVAL_MS)
