@@ -9,6 +9,7 @@ import os
 
 from dotenv import load_dotenv
 
+from src.config import app_url
 from src.schema import Column, Extract, ParamSpec
 
 from .task import DiscoveryInput, DiscoveryTask
@@ -22,7 +23,7 @@ TASKS: dict[str, DiscoveryTask] = {
         capability_id="login",
         description="Log in to ParaBank so an authenticated session exists "
         "for other capabilities to run in.",
-        target_url="https://parabank.parasoft.com/parabank/index.htm",
+        target_url=app_url("index.htm"),
         goal_prompt=(
             "Log in to ParaBank using the given username and password, "
             "and confirm you have reached the logged-in account services area."
@@ -39,7 +40,7 @@ TASKS: dict[str, DiscoveryTask] = {
     "request_loan": DiscoveryTask(
         capability_id="request_loan",
         description="Submit a loan request and report approved/denied.",
-        target_url="https://parabank.parasoft.com/parabank/requestloan.htm",
+        target_url=app_url("requestloan.htm"),
         goal_prompt=(
             "Submit a loan request for the given amount and down payment, "
             "using the given account. Report whether it was approved or denied."
@@ -62,7 +63,7 @@ TASKS: dict[str, DiscoveryTask] = {
     "get_account_overview": DiscoveryTask(
         capability_id="get_account_overview",
         description="Read every account with its balance and available amount, plus the total balance.",
-        target_url="https://parabank.parasoft.com/parabank/overview.htm",
+        target_url=app_url("overview.htm"),
         goal_prompt=(
             "Open the accounts overview and confirm it shows the table of accounts "
             "with their balances and a total. This is read-only: do not click "

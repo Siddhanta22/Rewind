@@ -8,6 +8,7 @@ import time
 
 from playwright.sync_api import Page
 
+from src.config import rebase
 from src.escalation.handoff import InterventionContext, request_intervention
 from src.observability.logger import EvidenceLogger
 from src.page_utils import safe_text_snippet
@@ -39,7 +40,8 @@ def replay(
     evidence: EvidenceLogger,
     enable_escalation: bool = False,
 ) -> ReplayResult:
-    check_url_allowed(artifact.target.base_url, safety)
+    target_url = rebase(artifact.target.base_url)
+    check_url_allowed(target_url, safety)
     # Register secret-looking param VALUES (by field name, e.g. "password")
     # so evidence scrubs them everywhere - deliberately not all params, so
     # legitimate business data (loan_amount, etc.) stays visible and useful
@@ -55,7 +57,7 @@ def replay(
     # assume the page is already at the target - nothing else establishes
     # that, so replay must navigate there first, same as discovery does
     # before Claude's loop starts. Found missing via live testing.
-    page.goto(artifact.target.base_url)
+    page.goto(target_url)
 
     # Gives a human exactly one chance to recover, from either trigger
     # point below (a failed step, or a failed checkpoint) - never both,
@@ -190,7 +192,7 @@ def run_chain(
 
 def _execute_step(page: Page, step: Step, params: dict, safety: SafetyConfig) -> None:
     if step.action == "navigate":
-        url = substitute(step.value, params)
+        url = rebase(substitute(step.value, params))
         check_url_allowed(url, safety)
         page.goto(url)
         return

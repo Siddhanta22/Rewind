@@ -6,6 +6,7 @@ based on ok=True + dedup rather than Claude's self-reported step indices
 (found ambiguous on a real run).
 """
 
+from src.config import canonicalize
 from src.schema import Artifact, Condition, Locator, OutcomeRule, ParamSpec, Step, TargetInfo
 
 from .raw_log import RawActionLog, RawLogEntry
@@ -45,7 +46,7 @@ def compile_artifact(
         capability_id=task.capability_id,
         version=1,
         description=task.description,
-        target=TargetInfo(base_url=task.target_url, description=task.description),
+        target=TargetInfo(base_url=canonicalize(task.target_url), description=task.description),
         inputs=inputs,
         outputs=task.outputs,
         steps=steps,
@@ -98,7 +99,8 @@ def _build_step(index: int, entry: RawLogEntry, task: DiscoveryTask) -> Step:
     elif entry.tool == "select_option":
         value = _parameterize_value(entry.args["option"], task)
     elif entry.tool == "navigate":
-        value = entry.args.get("url")
+        url = entry.args.get("url")
+        value = canonicalize(url) if url else url
 
     return Step(
         index=index,

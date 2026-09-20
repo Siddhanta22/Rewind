@@ -26,6 +26,7 @@ from anthropic.resources.messages import Messages
 from dotenv import load_dotenv
 from playwright.sync_api import Browser, Page, sync_playwright
 
+from src.config import app_url, base_url
 from src.discovery.claude_loop import MODEL, run_tool_loop
 from src.discovery.raw_log import RawActionLog
 from src.discovery.tasks import TASKS
@@ -61,7 +62,7 @@ class _LLMCallCounter:
 
 
 def _login(page: Page) -> None:
-    page.goto("https://parabank.parasoft.com/parabank/index.htm")
+    page.goto(app_url("index.htm"))
     page.fill('input[name="username"]', os.environ["PARABANK_USERNAME"])
     page.fill('input[name="password"]', os.environ["PARABANK_PASSWORD"])
     page.click('input[type="submit"]')
@@ -242,7 +243,7 @@ def main() -> None:
             "anthropic_sdk": version("anthropic"),
             "model": MODEL,
             "headless": True,
-            "target": "parabank.parasoft.com (public demo app)",
+            "target": base_url(),
         },
         "pricing_usd_per_million_tokens": {"input": PRICE_IN_PER_M, "output": PRICE_OUT_PER_M},
         "params": {"loan_amount": args.loan_amount, "down_payment": args.down_payment},

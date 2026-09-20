@@ -16,6 +16,7 @@ import anthropic
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
+from src.config import app_url
 from src.observability.logger import EvidenceLogger
 from src.safety.config import SafetyConfig
 
@@ -50,7 +51,7 @@ def main() -> None:
             # first, so discovery for this capability starts already
             # authenticated, same as it will during real replay.
             evidence.add_secret(os.environ["PARABANK_PASSWORD"])
-            page.goto("https://parabank.parasoft.com/parabank/index.htm")
+            page.goto(app_url("index.htm"))
             page.fill('input[name="username"]', os.environ["PARABANK_USERNAME"])
             page.fill('input[name="password"]', os.environ["PARABANK_PASSWORD"])
             page.click('input[type="submit"]')

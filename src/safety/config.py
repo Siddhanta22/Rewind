@@ -10,9 +10,11 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from src.config import base_hostname
+
 
 class SafetyConfig(BaseModel):
-    allowed_domains: list[str] = Field(default_factory=lambda: ["parabank.parasoft.com"])
+    allowed_domains: list[str] = Field(default_factory=lambda: [base_hostname()])
     allowed_routes: list[str] = Field(default_factory=lambda: ["/parabank/*"])
     allowed_actions: list[str] = Field(
         default_factory=lambda: ["navigate", "fill", "click", "select_option", "read_state"]
