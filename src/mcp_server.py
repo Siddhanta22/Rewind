@@ -26,6 +26,7 @@ from playwright.sync_api import sync_playwright
 from src.observability.logger import EvidenceLogger
 from src.replay.engine import replay
 from src.replay.result import ReplayResult
+from src.replay.validation import validate_params
 from src.safety.config import SafetyConfig
 from src.safety.enforcement import requires_human_confirmation
 from src.schema import Artifact
@@ -73,33 +74,6 @@ def build_tools(artifacts: dict[str, Artifact]) -> list[types.Tool]:
             )
         )
     return tools
-
-
-def _is_number(value: Any) -> bool:
-    if isinstance(value, bool):
-        return False
-    if isinstance(value, (int, float)):
-        return True
-    try:
-        float(value)
-        return isinstance(value, str)
-    except (TypeError, ValueError):
-        return False
-
-
-def validate_arguments(artifact: Artifact, arguments: dict[str, Any]) -> str | None:
-    declared = {p.name: p for p in artifact.inputs}
-    if unknown := sorted(set(arguments) - set(declared)):
-        return f"Unknown parameter(s): {unknown}. Expected: {sorted(declared)}."
-    if missing := [p.name for p in artifact.inputs if p.required and p.name not in arguments]:
-        return f"Missing required parameter(s): {missing}."
-    for name, value in arguments.items():
-        kind = declared[name].type
-        if kind == "number" and not _is_number(value):
-            return f"Parameter '{name}' must be a number."
-        if kind == "boolean" and not isinstance(value, bool):
-            return f"Parameter '{name}' must be true or false."
-    return None
 
 
 def _payload(result: ReplayResult, stage: str, run_id: str) -> dict[str, Any]:
@@ -159,7 +133,7 @@ async def _handle_call(
     artifact = artifacts.get(name)
     if artifact is None or name == SESSION_CAPABILITY:
         return {"status": "invalid_request", "detail": f"Unknown capability '{name}'."}
-    if problem := validate_arguments(artifact, arguments):
+    if problem := validate_params(artifact, arguments):
         return {"status": "invalid_request", "detail": problem}
     if requires_human_confirmation("click", arguments, SAFETY):
         return {

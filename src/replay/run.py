@@ -21,6 +21,7 @@ from src.safety.config import SafetyConfig
 from src.schema import Artifact
 
 from .engine import run_chain
+from .validation import validate_params
 
 
 def _parse_params(raw: list[str]) -> dict[str, str]:
@@ -41,17 +42,22 @@ def main() -> None:
     args = parser.parse_args()
     params = _parse_params(args.param)
 
+    login_artifact = Artifact.model_validate_json(open("artifacts/login.json").read())
+    target_artifact = None
+    if args.capability != "login":
+        target_artifact = Artifact.model_validate_json(open(f"artifacts/{args.capability}.json").read())
+        # Before the run log or the browser exist: a bad call should cost nothing
+        if problem := validate_params(target_artifact, params):
+            parser.error(f"{problem} Declared inputs: {[p.name for p in target_artifact.inputs]}")
+
     safety = SafetyConfig()
     run_id = f"replay_{args.capability}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}"
     evidence = EvidenceLogger(run_id=run_id, run_type="replay", safety=safety)
 
-    login_artifact = Artifact.model_validate_json(open("artifacts/login.json").read())
     login_params = {"username": os.environ["PARABANK_USERNAME"], "password": os.environ["PARABANK_PASSWORD"]}
-
-    if args.capability == "login":
+    if target_artifact is None:
         calls = [(login_artifact, login_params)]
     else:
-        target_artifact = Artifact.model_validate_json(open(f"artifacts/{args.capability}.json").read())
         calls = [(login_artifact, login_params), (target_artifact, params)]
 
     with sync_playwright() as p:
