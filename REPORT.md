@@ -194,7 +194,34 @@ during benchmarking; replay reported it as a hard failure with the "rate limited
 its diagnostics).
 
 **Next, in priority order**: (1) retry-with-backoff in replay, which would also ride out a
-transient rate limit; (2) an MCP server so any AI agent
-can call recorded capabilities as tools; (3) unit tests and CI against a local mock app;
-(4) an extraction locator and a per-field sensitivity flag in the schema; (5) a second app
+transient rate limit; (2) more unit tests and CI against a local mock app; (3) an
+extraction locator and a per-field sensitivity flag in the schema; (4) a second app
 variant demonstrating `TenantOverride` for real.
+
+## 8. MCP server
+
+`src/mcp_server.py` exposes each artifact as an MCP tool over stdio, so an agent calls
+`request_loan(...)` without knowing a browser is involved. The tool's input schema is
+generated from the artifact's `inputs`, which is the payoff of typing the artifact.
+
+Decisions that matter here, because the caller is now another model rather than a person:
+
+- **Credentials stay server-side.** `login` is not exposed as a tool; the server logs in
+  from its own environment before every call. An agent that can call `login` could be
+  talked into handling a password.
+- **The confirmation gate becomes a refusal.** Terminal handoff needs a person at the
+  keyboard, and an MCP call has none. A loan above the limit returns
+  `needs_human_approval` without opening a browser. Refusing is the safe default; a real
+  deployment would route that to an approval queue.
+- **The failure payload is deliberately thin.** It reports the failing step and what was
+  expected, not the observed page text, since that text can hold customer data and would
+  otherwise flow into a model's context. Full diagnostics go to local logs (`runs/`).
+- **Calls are serialized with a lock, and each runs in a worker thread.** Playwright's
+  sync API cannot run inside the server's asyncio loop, and a shared browser between
+  concurrent calls would cross their sessions. Throughput is one call at a time, which
+  also keeps the demo site's rate limiter happy. Real concurrency would need a browser
+  pool.
+
+Tested two ways: offline tests drive the server through an in-process MCP client with the
+browser stubbed (`tests/test_mcp_server.py`), and one live call over real stdio returned an
+approved loan against ParaBank.

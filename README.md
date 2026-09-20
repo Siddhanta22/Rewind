@@ -100,6 +100,25 @@ python -m src.benchmark --discoveries 3 --replays 20
 
 Both `run` commands open a visible browser by default so a human can step in during a handoff. Pass `--headless` to hide the window and `--no-escalation` to disable pausing entirely. Tests: `python -m pytest tests/ -q`.
 
+## Use it from an AI agent (MCP)
+
+`src/mcp_server.py` publishes every recorded capability as a typed [MCP](https://modelcontextprotocol.io) tool, so any MCP-capable agent can call `request_loan(loan_amount, down_payment, from_account_id)` like a function. The tool list is generated from the artifacts in `artifacts/`, so recording a new capability adds a new tool.
+
+To connect it to Claude Code, from the repo root:
+
+```bash
+claude mcp add rewind -- .venv/bin/python -m src.mcp_server
+```
+
+Any other MCP client works the same way: run `python -m src.mcp_server` from the repo root over stdio.
+
+Design choices:
+
+- **The agent never sees credentials.** Login runs server-side from `.env`; the agent only supplies the capability's own inputs.
+- **Risky calls are refused, not run.** A loan above the auto-approval limit returns `needs_human_approval`, because nobody is at a terminal to confirm it.
+- **Failures are described, not dumped.** A failed call tells the agent which step failed and what was expected. The observed page text stays in local logs under `runs/`, since it can contain customer data.
+- **One browser at a time.** Calls are serialized; each gets a fresh headless browser and session.
+
 ## Project structure
 
 ```
@@ -110,6 +129,7 @@ src/
   safety/              allowlist, risk classification, redaction
   escalation/          human handoff
   observability/       structured run logs and screenshots
+  mcp_server.py        MCP server exposing recorded capabilities as agent tools
   benchmark.py         discovery vs replay benchmark
 artifacts/             saved capability artifacts (JSON)
 benchmarks/            benchmark results
@@ -126,4 +146,4 @@ Honest list of what this is not yet:
 - Secret redaction infers sensitive fields from parameter names; there is no per-field sensitivity flag in the schema yet.
 - The recorded loan flow uses the default funding account; `from_account_id` is declared as an input but the steps don't select it yet.
 
-Next: retry with backoff, an MCP server so any AI agent can call recorded capabilities as tools, more unit tests with CI against a local mock app, and a second app variant to demonstrate artifact reuse across similar systems.
+Next: retry with backoff, more unit tests with CI against a local mock app, and a second app variant to demonstrate artifact reuse across similar systems.
