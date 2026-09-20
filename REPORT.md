@@ -106,6 +106,20 @@ Real failures found via live testing, not design review:
   checkpoint**, since conditions are ANDed. Fixed the artifact and the guidance that
   produced it.
 
+- **An input the tool advertised but no step used.** `request_loan` declared
+  `from_account_id`, and an agent could pass it, but the recording never touched the loan
+  form's "From account" dropdown, so every loan was funded from whichever account the form
+  listed first. That default is app state, not a constant: it moved from `12345` to
+  `12456` to `12789` over our own test runs. It was found by asking why the transfer form
+  had a dropdown, then noticing the loan form had one too. Two things were wrong: the
+  recording, and the fact that nothing could notice. Fixed by re-running discovery with an
+  example account that differs from the form's default (so selecting it is a deliberate
+  act, not a lucky match), which added a `select_option` step. Then verified against the
+  real balances: a loan via a non-default account debited exactly that account and no other,
+  and an unknown account number fails at the dropdown step without submitting anything.
+  `tests/test_artifacts.py` now checks that every declared input is used by a step, which
+  would have flagged the old artifact.
+
 **Known gap**: a complete error taxonomy has three tiers: business outcomes, recoverable
 conditions (for example, retrying a transient load), and hard failures. This system
 implements business outcomes and hard failures well; there's no retry tier - any execution
@@ -207,17 +221,14 @@ immediate hard failure); discovering `extract` rules with Claude instead of writ
 hand, and migrating `request_loan` off the code registry; `TenantOverride` (design only, nothing implemented); a real remote co-browsing
 console (the underlying primitive is real, the surface is local); an example
 `allowlist.json`; conversation-history summarization for long discovery runs; and a
-per-field secret flag on `ParamSpec`. Also: the recorded loan flow uses the default funding
-account, so the declared `from_account_id` input isn't yet selected by any step, and
-running replays back to back can trip the demo site's Cloudflare rate limit (it happened
+per-field secret flag on `ParamSpec`. Also: running replays back to back can trip the demo site's Cloudflare rate limit (it happened
 during benchmarking; replay reported it as a hard failure with the "rate limited" page in
 its diagnostics).
 
 **Next, in priority order**: (1) retry-with-backoff in replay, which would also ride out a
 transient rate limit; (2) CI that runs the tests and a replay against the ParaBank Docker
 image; (3) migrating `request_loan`'s outputs into its artifact, and a per-field
-sensitivity flag in the schema; (4) more capabilities (transfer funds needs the account
-dropdown, which also fixes `from_account_id`); (5) a second app variant demonstrating
+sensitivity flag in the schema; (4) more capabilities (transfer funds); (5) a second app variant demonstrating
 `TenantOverride` for real.
 
 ## 8. Test target: a local ParaBank

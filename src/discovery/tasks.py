@@ -42,8 +42,10 @@ TASKS: dict[str, DiscoveryTask] = {
         description="Submit a loan request and report approved/denied.",
         target_url=app_url("requestloan.htm"),
         goal_prompt=(
-            "Submit a loan request for the given amount and down payment, "
-            "using the given account. Report whether it was approved or denied."
+            "Submit a loan request for the given amount and down payment. "
+            "Choose the given account in the 'From account' dropdown, as the account the "
+            "down payment is taken from, before submitting. Do not rely on the form's "
+            "default account. Report whether it was approved or denied."
         ),
         inputs=[
             DiscoveryInput(name="loan_amount", value="1000", param_type="number",
@@ -51,7 +53,8 @@ TASKS: dict[str, DiscoveryTask] = {
             DiscoveryInput(name="down_payment", value="500", param_type="number",
                             description="Down payment amount, USD"),
             DiscoveryInput(name="from_account_id", value=os.environ.get("PARABANK_ACCOUNT_ID", ""), param_type="string",
-                            description="Account to associate with the request"),
+                            description="Account number the down payment is taken from. "
+                            "Ask the user which of their accounts to use; do not guess"),
         ],
         outputs=[
             ParamSpec(name="status", type="string", description="Approved or Denied"),

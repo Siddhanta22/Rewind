@@ -157,6 +157,5 @@ Honest list of what this is not yet:
 - Output extraction is schema-driven (an `extract` rule per output: a regex or a table's rows), but the rules are written by hand against the page markup, not discovered by Claude. `request_loan` still reads its outputs through a small code registry (`src/replay/extractors.py`) until it is migrated.
 - `get_account_overview` returns every account, so an account with many rows makes a large tool result for an agent. There is no paging or limit yet.
 - Secret redaction infers sensitive fields from parameter names; there is no per-field sensitivity flag in the schema yet.
-- The recorded loan flow uses the default funding account; `from_account_id` is declared as an input but the steps don't select it yet.
 
 Next: retry with backoff, CI that runs the tests and a replay against the ParaBank Docker image, moving `request_loan`'s outputs into its artifact, more capabilities (transfer funds, find transactions), and a second app variant to demonstrate artifact reuse across similar systems.

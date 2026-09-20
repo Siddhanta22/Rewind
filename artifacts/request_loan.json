@@ -11,19 +11,22 @@
       "name": "loan_amount",
       "type": "number",
       "required": true,
-      "description": "Requested loan amount, USD"
+      "description": "Requested loan amount, USD",
+      "extract": null
     },
     {
       "name": "down_payment",
       "type": "number",
       "required": true,
-      "description": "Down payment amount, USD"
+      "description": "Down payment amount, USD",
+      "extract": null
     },
     {
       "name": "from_account_id",
       "type": "string",
       "required": true,
-      "description": "Account to associate with the request"
+      "description": "Account number the down payment is taken from. Ask the user which of their accounts to use; do not guess",
+      "extract": null
     }
   ],
   "outputs": [
@@ -31,13 +34,15 @@
       "name": "status",
       "type": "string",
       "required": true,
-      "description": "Approved or Denied"
+      "description": "Approved or Denied",
+      "extract": null
     },
     {
       "name": "new_account_number",
       "type": "string",
       "required": false,
-      "description": "New loan account number, present only when approved"
+      "description": "New loan account number, present only when approved",
+      "extract": null
     }
   ],
   "steps": [
@@ -48,10 +53,10 @@
         "strategy": "id_attribute",
         "value": "amount",
         "fallback": null,
-        "reasoning": "The loan amount input has id 'amount'."
+        "reasoning": "The loan amount input has id=\"amount\""
       },
       "value": "{loan_amount}",
-      "description": "The loan amount input has id 'amount'."
+      "description": "The loan amount input has id=\"amount\""
     },
     {
       "index": 2,
@@ -60,22 +65,34 @@
         "strategy": "id_attribute",
         "value": "downPayment",
         "fallback": null,
-        "reasoning": "The down payment input has id 'downPayment'."
+        "reasoning": "The down payment input has id=\"downPayment\""
       },
       "value": "{down_payment}",
-      "description": "The down payment input has id 'downPayment'."
+      "description": "The down payment input has id=\"downPayment\""
     },
     {
       "index": 3,
+      "action": "select_option",
+      "locator": {
+        "strategy": "id_attribute",
+        "value": "fromAccountId",
+        "fallback": null,
+        "reasoning": "The from account dropdown has id=\"fromAccountId\", select the specified account 12345"
+      },
+      "value": "{from_account_id}",
+      "description": "The from account dropdown has id=\"fromAccountId\", select the specified account 12345"
+    },
+    {
+      "index": 4,
       "action": "click",
       "locator": {
         "strategy": "accessible_name",
         "value": "role=button[name=\"Apply Now\"]",
         "fallback": null,
-        "reasoning": "The Apply Now button submits the loan request form."
+        "reasoning": "Submit the loan application form using the Apply Now button"
       },
       "value": null,
-      "description": "The Apply Now button submits the loan request form."
+      "description": "Submit the loan application form using the Apply Now button"
     }
   ],
   "checkpoint": [
@@ -84,9 +101,9 @@
       "text": "Loan Request Processed",
       "locator": null,
       "pattern": null,
-      "description": "Confirms the loan request was processed and a result page was reached - true for both Approved and Denied outcomes. Manually broadened after discovery over-fit to the one outcome (Approved) it happened to observe; see project memory."
+      "description": "Page heading confirms the loan request was processed"
     }
   ],
   "known_outcomes": [],
-  "created_from_run": "verify_request_loan_0001"
+  "created_from_run": "discovery_request_loan_20260920T193327"
 }
