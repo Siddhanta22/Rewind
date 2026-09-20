@@ -1,4 +1,4 @@
-# Design Report
+# Rewind: Design Notes
 
 ## 1. Architecture
 
@@ -31,10 +31,10 @@ attribute list for exactly this case (`src/discovery/accessibility.py`).
 appear as literals - Claude only sees `{username}`/`{password}` placeholder tokens,
 resolved only at the Playwright execution boundary, never logged.
 
-**Trade-offs**: single process, no queues - the assignment explicitly doesn't reward
-pre-built scaling infrastructure. Conversation history grows every turn since the API is
-stateless; bounded and fine at this scale (3-10 turns/run), would need summarization for
-much longer discovery runs (see Cuts).
+**Trade-offs**: single process, no queues - nothing at this scale needs scaling
+infrastructure yet. Conversation history grows every turn since the API is stateless;
+bounded and fine at this scale (5-7 turns/run), would need summarization for much
+longer discovery runs (see Limitations and next steps).
 
 ## 2. Artifact schema
 
@@ -45,9 +45,9 @@ much longer discovery runs (see Cuts).
 **`Locator` carries a fallback chain, and `reasoning` is required, not optional.** Some
 elements have a clean accessible name, others only a stable `id`/`name` with no label
 association - found on the live target, not assumed. Rather than one guaranteed-fragile
-locator, the schema admits "try this, then this." `reasoning` is required because the spec
-explicitly asks for locator-robustness reasoning; making it a required tool-call argument
-means it's populated by Claude at the moment it acts, never invented after the fact.
+locator, the schema admits "try this, then this." `reasoning` is required so every locator
+choice is explainable; making it a required tool-call argument means it's populated by
+Claude at the moment it acts, never invented after the fact.
 
 **The artifact is decoupled from the raw discovery transcript.** `created_from_run` points
 at the full raw action log rather than embedding it - the raw log is read once, by
@@ -94,10 +94,10 @@ Real failures found via live testing, not design review:
   checkpoint**, since conditions are ANDed. Fixed the artifact and the guidance that
   produced it.
 
-**Known gap**: the spec names three failure categories, including "recoverable conditions"
-(its own example: retry a transient load). This system implements business-outcomes and
-hard-failures well; there's no retry tier - any execution failure is an immediate hard
-failure.
+**Known gap**: a complete error taxonomy has three tiers: business outcomes, recoverable
+conditions (for example, retrying a transient load), and hard failures. This system
+implements business outcomes and hard failures well; there's no retry tier - any execution
+failure is an immediate hard failure.
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -133,7 +133,7 @@ explicit `finish(status="stuck")`, a replay step/checkpoint failure, and a risky
 
 **Mechanism**: non-headless browser, blocking on a real terminal `input()` while the
 visible window sits exactly as automation left it - the same live `Page`/session, not a
-fresh one. This is intentionally the mock operator surface the spec's scope note allows;
+fresh one. This is intentionally a minimal operator surface rather than a remote console;
 what's real is the control-transfer primitive itself (pause, expose the live session,
 explicit resume signal, logged before/after state).
 
@@ -175,19 +175,20 @@ with an unprotected API key copy was also found and removed before the first com
 secrecy from field-name patterns rather than a schema guarantee. The allowlist is fully
 configurable in code but not exposed as an example file yet.
 
-## 7. Cuts
+## 7. Limitations and next steps
 
-**Left out, deliberately**: retry logic for "recoverable conditions" (every failure is an
+**Not implemented yet**: retry logic for recoverable conditions (every failure is an
 immediate hard failure); an extraction locator on `ParamSpec` (worked around with a code
 registry); `TenantOverride` (design only, nothing implemented); a real remote co-browsing
-console (out of scope per the assignment; the underlying primitive is real, the surface is
-local); an example `allowlist.json`; conversation-history summarization for long discovery
-runs; a per-field secret flag on `ParamSpec`; stretch goals (capability catalog, code
-generation, confidence scoring, multi-run stability) in favor of depth on the core
-requirements.
+console (the underlying primitive is real, the surface is local); an example
+`allowlist.json`; conversation-history summarization for long discovery runs; and a
+per-field secret flag on `ParamSpec`. Two more surfaced by the benchmark: replay waits a
+fixed 1 s after every step, which is most of the 3.7 s loan step, and the recorded loan
+flow uses the default funding account, so the declared `from_account_id` input isn't yet
+selected by any step.
 
-**What we'd build next**, in priority order: (1) retry-with-backoff for transient
-failures, closing the most concrete gap against the spec's own error taxonomy; (2) an
-extraction locator on `ParamSpec`, making output extraction schema-driven; (3) a second
-tenant/variant artifact demonstrating `TenantOverride` for real; (4) an example
-`allowlist.json`.
+**Next, in priority order**: (1) condition-based waits and retry-with-backoff in replay,
+closing the biggest performance and error-taxonomy gaps; (2) an MCP server so any AI agent
+can call recorded capabilities as tools; (3) unit tests and CI against a local mock app;
+(4) an extraction locator and a per-field sensitivity flag in the schema; (5) a second app
+variant demonstrating `TenantOverride` for real.
