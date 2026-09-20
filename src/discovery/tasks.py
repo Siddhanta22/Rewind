@@ -1,14 +1,15 @@
-"""The two concrete discovery tasks for this project: login (composed
-before any account-services capability) and request_loan (the capability
-itself). Real target URLs and example values, verified against the live
-site. See REPORT.md, "Architecture" for why login is separate.
+"""The concrete discovery tasks: login (composed before any account-services
+capability) and the capabilities themselves. Real target URLs and example
+values, verified against the live site. Each capability's output `extract`
+rules are written here, by hand, against the real page markup. See
+REPORT.md, "Architecture" for why login is separate.
 """
 
 import os
 
 from dotenv import load_dotenv
 
-from src.schema import ParamSpec
+from src.schema import Column, Extract, ParamSpec
 
 from .task import DiscoveryInput, DiscoveryTask
 
@@ -57,5 +58,35 @@ TASKS: dict[str, DiscoveryTask] = {
                         description="New loan account number, present only when approved"),
         ],
         max_steps=15,
+    ),
+    "get_account_overview": DiscoveryTask(
+        capability_id="get_account_overview",
+        description="Read every account with its balance and available amount, plus the total balance.",
+        target_url="https://parabank.parasoft.com/parabank/overview.htm",
+        goal_prompt=(
+            "Open the accounts overview and confirm it shows the table of accounts "
+            "with their balances and a total. This is read-only: do not click "
+            "anything that changes data."
+        ),
+        inputs=[],
+        outputs=[
+            ParamSpec(
+                name="accounts", type="array", description="Every account, one entry each",
+                extract=Extract(
+                    kind="table",
+                    row_selector="#accountTable tbody tr:has(a)",
+                    columns=[
+                        Column(name="account_number"),
+                        Column(name="balance", type="number"),
+                        Column(name="available", type="number"),
+                    ],
+                ),
+            ),
+            ParamSpec(
+                name="total_balance", type="number", description="Sum of all account balances, USD",
+                extract=Extract(kind="regex", pattern=r"Total\s+\$([\d,.]+)"),
+            ),
+        ],
+        max_steps=8,
     ),
 }

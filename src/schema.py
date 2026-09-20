@@ -39,11 +39,36 @@ class Step(BaseModel):
     description: str
 
 
+class Column(BaseModel):
+    name: str
+    type: Literal["string", "number"] = "string"
+
+
+class Extract(BaseModel):
+    """Where on the result page an output value lives, so replay can read it
+    without any capability-specific code.
+
+    regex: `pattern` is matched against the page text; its first capture
+      group is the value.
+    table: `row_selector` matches one element per row (use it to leave out
+      header and total rows, e.g. "tbody tr:has(a)"); `columns` names the
+      row's cells in order. A row with fewer cells than columns, or a number
+      cell that can't be read as a number, is skipped. Yields a list of
+      {column name: value}.
+    """
+
+    kind: Literal["regex", "table"]
+    pattern: str | None = None
+    row_selector: str | None = None
+    columns: list[Column] = Field(default_factory=list)
+
+
 class ParamSpec(BaseModel):
     name: str
-    type: Literal["string", "number", "boolean"]
+    type: Literal["string", "number", "boolean", "array"]
     required: bool = True
     description: str = ""
+    extract: Extract | None = None  # outputs only; None falls back to the extractor registry
 
 
 class Condition(BaseModel):
