@@ -109,7 +109,7 @@ python -m src.discovery.run --capability request_loan
 python -m src.benchmark --discoveries 3 --replays 20
 ```
 
-Both `run` commands open a visible browser by default so a human can step in during a handoff. Pass `--headless` to hide the window and `--no-escalation` to disable pausing entirely. Tests: `python -m pytest tests/ -q`.
+Both `run` commands open a visible browser by default so a human can step in during a handoff. Pass `--headless` to hide the window and `--no-escalation` to never pause for a human. The safety rules still apply: a call that needs approval (for example a loan above the limit) is refused instead of run, since there is no one to ask. Tests: `python -m pytest tests/ -q`.
 
 ## Use it from an AI agent (MCP)
 

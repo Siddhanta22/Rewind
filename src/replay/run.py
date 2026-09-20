@@ -18,6 +18,7 @@ from playwright.sync_api import sync_playwright
 
 from src.observability.logger import EvidenceLogger
 from src.safety.config import SafetyConfig
+from src.safety.enforcement import artifact_needs_approval
 from src.schema import Artifact
 
 from .engine import run_chain
@@ -44,13 +45,19 @@ def main() -> None:
 
     login_artifact = Artifact.model_validate_json(open("artifacts/login.json").read())
     target_artifact = None
+    safety = SafetyConfig()
     if args.capability != "login":
         target_artifact = Artifact.model_validate_json(open(f"artifacts/{args.capability}.json").read())
         # Before the run log or the browser exist: a bad call should cost nothing
         if problem := validate_params(target_artifact, params):
             parser.error(f"{problem} Declared inputs: {[p.name for p in target_artifact.inputs]}")
+        if args.no_escalation and artifact_needs_approval(target_artifact, params, safety):
+            parser.exit(
+                3,
+                f"refused: {args.capability} needs human approval for these values, and "
+                "--no-escalation means there is no one to ask. Run without it to approve in the browser.\n",
+            )
 
-    safety = SafetyConfig()
     run_id = f"replay_{args.capability}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}"
     evidence = EvidenceLogger(run_id=run_id, run_type="replay", safety=safety)
 

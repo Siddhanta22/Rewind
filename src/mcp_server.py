@@ -28,7 +28,7 @@ from src.replay.engine import replay
 from src.replay.result import ReplayResult
 from src.replay.validation import validate_params
 from src.safety.config import SafetyConfig
-from src.safety.enforcement import requires_human_confirmation
+from src.safety.enforcement import artifact_needs_approval
 from src.schema import Artifact
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -135,7 +135,7 @@ async def _handle_call(
         return {"status": "invalid_request", "detail": f"Unknown capability '{name}'."}
     if problem := validate_params(artifact, arguments):
         return {"status": "invalid_request", "detail": problem}
-    if requires_human_confirmation("click", arguments, SAFETY):
+    if artifact_needs_approval(artifact, arguments, SAFETY):
         return {
             "status": "needs_human_approval",
             "detail": "This request is above the auto-approval limit and was not run.",

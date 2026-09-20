@@ -21,9 +21,11 @@ class SafetyConfig(BaseModel):
     )
     risky_actions: list[str] = Field(default_factory=lambda: ["click"])
     risky_requires_confirmation: bool = True
-    # Below this, a risky (click) step auto-proceeds without pausing for a
-    # human; above it, request_intervention is called first.
-    max_auto_approve_loan_amount: float | None = 5000
+    # A risky (click) step needs a human's approval when any of these
+    # parameters is over its limit. Keyed by parameter name, so a new
+    # capability's amount is one more entry (e.g. "amount": 1000). A value
+    # that can't be read as a number counts as over the limit.
+    approval_thresholds: dict[str, float] = Field(default_factory=lambda: {"loan_amount": 5000})
     secret_param_patterns: list[str] = Field(
         default_factory=lambda: ["password", "passwd", "secret", "token", "api_key", "ssn"]
     )

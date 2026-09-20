@@ -174,6 +174,19 @@ required confirmation on *every* click, including harmless ones, since it only s
 confirmation via a loan-specific escape hatch. Fixed by requiring an actual risk signal to
 be present, not just "this action type is generically risky."
 
+**The gate fails closed.** Live use showed a gap: the confirmation check ran only inside
+the human-pause code, and that is off by default, so `--no-escalation`, the benchmark and
+any direct caller of `replay()` skipped it entirely. Only the MCP server had its own copy.
+Now `--no-escalation` means "don't wait for a human", not "no safety": when a call needs
+approval and nobody can be asked, `replay()` raises `ApprovalRequired` before touching the
+browser, the CLI exits with code 3, and the MCP server returns `needs_human_approval`. All
+three ask the same helper (`artifact_needs_approval`). The rule itself is now a table of
+parameter name to limit (`approval_thresholds`, default `loan_amount: 5000`), so a new
+capability's amount is one more entry, and a value that can't be read as a number counts as
+over the limit. That last case matters: `nan` is not greater than anything, so the check is
+written as `not value <= limit`. With escalation on, behavior is unchanged: it pauses on
+the pre-filled form for a person.
+
 **Redaction - the most significant finding in this project.** While preparing evidence for
 submission, a real password was found in plaintext across six log files. Two compounding
 causes: field-name redaction wasn't recursive, so a secret nested inside a `"params"` dict

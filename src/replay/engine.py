@@ -14,6 +14,8 @@ from src.observability.logger import EvidenceLogger
 from src.page_utils import safe_text_snippet
 from src.safety.config import SafetyConfig
 from src.safety.enforcement import (
+    ApprovalRequired,
+    artifact_needs_approval,
     check_action_allowed,
     check_url_allowed,
     requires_human_confirmation,
@@ -51,6 +53,14 @@ def replay(
     for key, value in params.items():
         if any(pattern in key.lower() for pattern in safety.secret_param_patterns):
             evidence.add_secret(str(value))
+    # Fail closed: with escalation off there is no one to ask, so a call that
+    # needs approval is refused up front, before the browser is touched.
+    if not enable_escalation and artifact_needs_approval(artifact, params, safety):
+        evidence.log_event("approval_refused", capability_id=artifact.capability_id, params=params)
+        raise ApprovalRequired(
+            f"{artifact.capability_id} needs human approval for these parameters, "
+            "and escalation is off, so there is no one to ask"
+        )
     evidence.log_event("replay_start", capability_id=artifact.capability_id, params=params)
 
     # Deterministic bootstrap, mirroring discovery: the artifact's steps
