@@ -85,7 +85,7 @@ def _cost(input_tokens: float, output_tokens: float) -> float:
 
 
 def bench_discovery(browser: Browser, runs: int, loan_amount: str, down_payment: str,
-                    tmp: Path, safety: SafetyConfig) -> list[dict]:
+                    tmp: Path, safety: SafetyConfig, delay: float) -> list[dict]:
     task = TASKS["request_loan"].model_copy(deep=True)
     for inp in task.inputs:
         if inp.name == "loan_amount":
@@ -117,12 +117,12 @@ def bench_discovery(browser: Browser, runs: int, loan_amount: str, down_payment:
             "cost_usd": round(_cost(result.usage.input_tokens, result.usage.output_tokens), 4),
         })
         print(f"discovery {i + 1}/{runs}: {rows[-1]}")
-        time.sleep(1)
+        time.sleep(delay)
     return rows
 
 
 def bench_replay(browser: Browser, runs: int, params: dict, tmp: Path,
-                 safety: SafetyConfig) -> tuple[list[dict], int]:
+                 safety: SafetyConfig, delay: float) -> tuple[list[dict], int]:
     login = Artifact.model_validate_json((ROOT / "artifacts/login.json").read_text())
     loan = Artifact.model_validate_json((ROOT / "artifacts/request_loan.json").read_text())
     creds = {"username": os.environ["PARABANK_USERNAME"], "password": os.environ["PARABANK_PASSWORD"]}
@@ -152,7 +152,7 @@ def bench_replay(browser: Browser, runs: int, params: dict, tmp: Path,
                 "total_seconds": round(t2 - t0, 2),
             })
             print(f"replay {i + 1}/{runs}: {rows[-1]}")
-            time.sleep(1)
+            time.sleep(delay)
         llm_calls = counter.count
     return rows, llm_calls
 
@@ -204,6 +204,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark discovery vs replay")
     parser.add_argument("--discoveries", type=int, default=3)
     parser.add_argument("--replays", type=int, default=20)
+    parser.add_argument(
+        "--delay", type=float, default=8.0,
+        help="seconds to pause between runs (the demo site is behind Cloudflare and rate-limits bursts)",
+    )
     parser.add_argument("--loan-amount", default="100")
     parser.add_argument("--down-payment", default="10")
     parser.add_argument("--out", default=str(ROOT / "benchmarks" / "results.json"))
@@ -219,11 +223,13 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp, sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         discovery = (
-            bench_discovery(browser, args.discoveries, args.loan_amount, args.down_payment, Path(tmp), safety)
+            bench_discovery(browser, args.discoveries, args.loan_amount, args.down_payment,
+                            Path(tmp), safety, args.delay)
             if args.discoveries else []
         )
         replays, llm_calls = (
-            bench_replay(browser, args.replays, params, Path(tmp), safety) if args.replays else ([], 0)
+            bench_replay(browser, args.replays, params, Path(tmp), safety, args.delay)
+            if args.replays else ([], 0)
         )
         browser.close()
 

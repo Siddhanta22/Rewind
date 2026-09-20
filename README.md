@@ -19,16 +19,17 @@ Measured on the `request_loan` capability (`python -m src.benchmark`, 2026-09-20
 |---|---|---|
 | Runs | 3 | 20 |
 | Success rate | 100% | 100% |
-| Time for the loan step, median | 14.1 s (range 11.5 to 19.2) | **3.7 s** (range 3.70 to 3.74) |
-| Time including login, median | n/a | 9.05 s (p95 9.22) |
+| Time for the loan step, median | 13.1 s (range 12.5 to 13.3) | **0.41 s** (range 0.39 to 0.57) |
+| Time including login, median | n/a | 1.54 s (p95 1.87) |
 | LLM API calls per run | 6 | **0** (measured, see below) |
-| Tokens per run (in / out) | ~29,200 / ~1,100 | 0 / 0 |
-| Est. cost per run | ~$0.07 | **$0** |
+| Tokens per run (in / out) | ~34,400 / ~1,000 | 0 / 0 |
+| Est. cost per run | ~$0.08 | **$0** |
 
-- Replay is about **3.8x faster** than discovery for the same step, and its timing is nearly constant.
+- Replay is about **32x faster** than discovery for the same step, and its timing is nearly constant.
+- The benchmark also found a bottleneck in replay itself: it slept a fixed 1 s after every step, so the loan step took 3.7 s. Replacing that with a wait for the page state replay actually needs cut it to 0.41 s.
 - "0 LLM calls" is measured, not assumed: the benchmark instruments the Anthropic client during replay and counts calls.
 - Cost uses Claude Sonnet 5 list pricing ($2 input / $10 output per 1M tokens).
-- Caveats: discovery is only 3 runs, everything ran over the internet against a public demo app, and replay currently waits a fixed 1 s after every step, which is most of its 3.7 s (see Roadmap). Raw data: [`benchmarks/results.json`](benchmarks/results.json).
+- Caveats: discovery is only 3 runs, and everything ran over the internet against a public demo app. Runs are paced 8 s apart (`--delay`) because the demo site's Cloudflare rate limiter temporarily banned a faster burst during development. Raw data: [`benchmarks/results.json`](benchmarks/results.json).
 
 ## How it works
 
@@ -120,10 +121,9 @@ evidence/              logs and screenshots from real discovery and replay runs
 Honest list of what this is not yet:
 
 - Only tested against ParaBank, with two capabilities (login, request loan).
-- No retry tier: a transient failure is an immediate hard failure with diagnostics, not a retried step.
-- Replay waits a fixed 1 s after every step. Waiting on the actual expected page change would cut replay time substantially.
+- No retry tier: a transient failure (including a rate limit from the demo site) is an immediate hard failure with diagnostics, not a retried step.
 - Output extraction lives in a small code registry (`src/replay/extractors.py`) rather than in the artifact schema.
 - Secret redaction infers sensitive fields from parameter names; there is no per-field sensitivity flag in the schema yet.
 - The recorded loan flow uses the default funding account; `from_account_id` is declared as an input but the steps don't select it yet.
 
-Next: an MCP server so any AI agent can call recorded capabilities as tools, unit tests with CI against a local mock app, and a second app variant to demonstrate artifact reuse across similar systems.
+Next: retry with backoff, an MCP server so any AI agent can call recorded capabilities as tools, more unit tests with CI against a local mock app, and a second app variant to demonstrate artifact reuse across similar systems.

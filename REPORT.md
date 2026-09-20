@@ -88,8 +88,13 @@ Real failures found via live testing, not design review:
   it for replay. Fixed by adding the same deterministic bootstrap.
 - **`networkidle` didn't reliably catch an AJAX-driven update.** Invisible during discovery
   because Claude's next API call added enough real latency to mask it; replay has no such
-  delay, so the same gap became a reproducible failure. Fixed with an explicit buffer wait.
-  Lesson: replay can't inherit discovery's timing behavior, it needs its own.
+  delay, so the same gap became a reproducible failure. First patched with a fixed 1 s
+  sleep after every step, which the benchmark later showed was most of replay's runtime.
+  Replaced with a poll for the state replay actually needs: after the last step it waits
+  until a known outcome or the whole checkpoint is visible (5 s cap). Between steps no wait
+  is needed, since each step's locator waits for its own element. That is both faster and
+  safer on a slow server. Lesson: replay can't inherit discovery's timing behavior, and a
+  fixed sleep is a guess where a condition is available.
 - **An unsatisfiable `element_visible` condition with no locator silently failed an entire
   checkpoint**, since conditions are ANDed. Fixed the artifact and the guidance that
   produced it.
@@ -182,13 +187,14 @@ immediate hard failure); an extraction locator on `ParamSpec` (worked around wit
 registry); `TenantOverride` (design only, nothing implemented); a real remote co-browsing
 console (the underlying primitive is real, the surface is local); an example
 `allowlist.json`; conversation-history summarization for long discovery runs; and a
-per-field secret flag on `ParamSpec`. Two more surfaced by the benchmark: replay waits a
-fixed 1 s after every step, which is most of the 3.7 s loan step, and the recorded loan
-flow uses the default funding account, so the declared `from_account_id` input isn't yet
-selected by any step.
+per-field secret flag on `ParamSpec`. Also: the recorded loan flow uses the default funding
+account, so the declared `from_account_id` input isn't yet selected by any step, and
+running replays back to back can trip the demo site's Cloudflare rate limit (it happened
+during benchmarking; replay reported it as a hard failure with the "rate limited" page in
+its diagnostics).
 
-**Next, in priority order**: (1) condition-based waits and retry-with-backoff in replay,
-closing the biggest performance and error-taxonomy gaps; (2) an MCP server so any AI agent
+**Next, in priority order**: (1) retry-with-backoff in replay, which would also ride out a
+transient rate limit; (2) an MCP server so any AI agent
 can call recorded capabilities as tools; (3) unit tests and CI against a local mock app;
 (4) an extraction locator and a per-field sensitivity flag in the schema; (5) a second app
 variant demonstrating `TenantOverride` for real.
