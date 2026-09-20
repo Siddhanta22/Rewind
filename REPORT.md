@@ -64,10 +64,17 @@ result as a hard failure. Fixed by broadening the checkpoint to an outcome-agnos
 condition and fixing the underlying tool guidance; a second, independent discovery run
 then produced a correctly outcome-agnostic checkpoint unprompted.
 
-**Known limitation**: `ParamSpec` declares an output's shape but not where on the page to
-find it - no schema-driven extraction locator. Worked around with a small
-capability-keyed extractor registry (`src/replay/extractors.py`) rather than changing the
-frozen schema mid-project.
+**Where an output lives is data, not code.** `ParamSpec` originally declared an output's
+shape but not where on the page to find it, so `request_loan` needed a hand-written
+function in a capability-keyed registry (`src/replay/extractors.py`). Adding
+`get_account_overview`, whose result is a table, forced the fix: an output can carry an
+`extract` rule, either a `regex` (first capture group of the page text) or a `table` (a row
+selector plus named, typed columns), and replay reads it with generic code. Numbers like
+`$1,395.50` or `-$2300.00` are converted, and a table that fills in by AJAX is waited for.
+The row selector does the real work: the overview's Total row has three cells, one blank, so
+it would slip through a cell-count check. `tbody tr:has(a)` selects only account rows (they
+link to their activity page). The rules are still written by hand from the page markup
+rather than discovered by Claude, and `request_loan` still uses the registry.
 
 ## 3. Determinism & error handling
 
@@ -183,8 +190,8 @@ configurable in code but not exposed as an example file yet.
 ## 7. Limitations and next steps
 
 **Not implemented yet**: retry logic for recoverable conditions (every failure is an
-immediate hard failure); an extraction locator on `ParamSpec` (worked around with a code
-registry); `TenantOverride` (design only, nothing implemented); a real remote co-browsing
+immediate hard failure); discovering `extract` rules with Claude instead of writing them by
+hand, and migrating `request_loan` off the code registry; `TenantOverride` (design only, nothing implemented); a real remote co-browsing
 console (the underlying primitive is real, the surface is local); an example
 `allowlist.json`; conversation-history summarization for long discovery runs; and a
 per-field secret flag on `ParamSpec`. Also: the recorded loan flow uses the default funding
@@ -194,11 +201,29 @@ during benchmarking; replay reported it as a hard failure with the "rate limited
 its diagnostics).
 
 **Next, in priority order**: (1) retry-with-backoff in replay, which would also ride out a
-transient rate limit; (2) more unit tests and CI against a local mock app; (3) an
-extraction locator and a per-field sensitivity flag in the schema; (4) a second app
-variant demonstrating `TenantOverride` for real.
+transient rate limit; (2) CI that runs the tests and a replay against the ParaBank Docker
+image; (3) migrating `request_loan`'s outputs into its artifact, and a per-field
+sensitivity flag in the schema; (4) more capabilities (transfer funds needs the account
+dropdown, which also fixes `from_account_id`); (5) a second app variant demonstrating
+`TenantOverride` for real.
 
-## 8. MCP server
+## 8. Test target: a local ParaBank
+
+The public ParaBank demo wipes its database every so often. During this work a freshly
+registered account vanished twice within about an hour, which failed a discovery run for a
+reason unrelated to the code. `PARABANK_BASE_URL` (`src/config.py`) points discovery, replay
+and the benchmark at the official `parasoft/parabank` Docker image instead: a stable
+database, a seeded `john` / `demo` user, no rate limiter.
+
+The design constraint was that artifacts stay portable. They always record the canonical
+public URL; replay rebases it onto the configured instance at run time (`rebase`), and
+compiling an artifact converts a local URL back (`canonicalize`), so a capability recorded
+against `localhost` doesn't commit `localhost`. The safety allowlist's default domain follows
+the configured host, so the guardrail still holds for whichever instance is in use. One
+bug worth remembering: `.env.example` ships `PARABANK_BASE_URL=` blank, which dotenv loads
+as an empty string rather than "unset", so the lookup uses `or`, not a default argument.
+
+## 9. MCP server
 
 `src/mcp_server.py` exposes each artifact as an MCP tool over stdio, so an agent calls
 `request_loan(...)` without knowing a browser is involved. The tool's input schema is

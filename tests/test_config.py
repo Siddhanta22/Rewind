@@ -21,6 +21,11 @@ def test_defaults_to_the_public_site(monkeypatch):
     assert config.rebase(f"{config.PUBLIC_BASE_URL}/x.htm") == f"{config.PUBLIC_BASE_URL}/x.htm"
 
 
+def test_a_blank_setting_means_the_public_site(monkeypatch):
+    monkeypatch.setenv("PARABANK_BASE_URL", "")  # what a blank line in .env produces
+    assert config.base_url() == config.PUBLIC_BASE_URL
+
+
 def test_rebase_points_a_canonical_url_at_the_local_instance(local):
     assert config.rebase(f"{config.PUBLIC_BASE_URL}/overview.htm") == f"{LOCAL}/overview.htm"
 

@@ -1,0 +1,68 @@
+{
+  "capability_id": "get_account_overview",
+  "version": 1,
+  "description": "Read every account with its balance and available amount, plus the total balance.",
+  "target": {
+    "base_url": "https://parabank.parasoft.com/parabank/overview.htm",
+    "description": "Read every account with its balance and available amount, plus the total balance."
+  },
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "accounts",
+      "type": "array",
+      "required": true,
+      "description": "Every account, one entry each",
+      "extract": {
+        "kind": "table",
+        "pattern": null,
+        "row_selector": "#accountTable tbody tr:has(a)",
+        "columns": [
+          {
+            "name": "account_number",
+            "type": "string"
+          },
+          {
+            "name": "balance",
+            "type": "number"
+          },
+          {
+            "name": "available",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "name": "total_balance",
+      "type": "number",
+      "required": true,
+      "description": "Sum of all account balances, USD",
+      "extract": {
+        "kind": "regex",
+        "pattern": "Total\\s+\\$([\\d,.]+)",
+        "row_selector": null,
+        "columns": []
+      }
+    }
+  ],
+  "steps": [],
+  "checkpoint": [
+    {
+      "kind": "text_present",
+      "text": "Accounts Overview",
+      "locator": null,
+      "pattern": null,
+      "description": "Accounts Overview heading is present"
+    },
+    {
+      "kind": "text_present",
+      "text": "Total",
+      "locator": null,
+      "pattern": null,
+      "description": "Total row with total balance is present in the table"
+    }
+  ],
+  "known_outcomes": [],
+  "created_from_run": "discovery_get_account_overview_20260920T140328"
+}

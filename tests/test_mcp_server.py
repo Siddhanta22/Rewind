@@ -40,10 +40,12 @@ def test_advertises_capabilities_but_not_login():
             return await client.list_tools()
 
     tools = {t.name: t for t in asyncio.run(go()).tools}
-    assert list(tools) == ["request_loan"]
+    assert set(tools) == {"request_loan", "get_account_overview"}
     schema = tools["request_loan"].input_schema
     assert schema["properties"]["loan_amount"]["type"] == "number"
     assert "loan_amount" in schema["required"]
+    overview = tools["get_account_overview"].input_schema
+    assert overview["properties"] == {} and overview["required"] == []
 
 
 def test_valid_call_runs_the_capability(browser_runs):

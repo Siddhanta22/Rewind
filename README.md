@@ -9,7 +9,7 @@ Rewind splits the problem in two:
 1. **Discovery.** A Claude agent, driving a real browser through Playwright, figures out how to complete a task once (for example, apply for a loan).
 2. **Replay.** That successful run is compiled into a typed, versioned **artifact**. A deterministic replay engine executes the artifact on every future call with different input values, no LLM involved, and reports back a structured result.
 
-Built and tested against [ParaBank](https://parabank.parasoft.com), a public banking demo app.
+Built and tested against [ParaBank](https://parabank.parasoft.com), a banking demo app, either the public site or a local Docker copy. Three capabilities are recorded so far: `login`, `request_loan`, and `get_account_overview`.
 
 ## Results
 
@@ -29,7 +29,7 @@ Measured on the `request_loan` capability (`python -m src.benchmark`, 2026-09-20
 - The benchmark also found a bottleneck in replay itself: it slept a fixed 1 s after every step, so the loan step took 3.7 s. Replacing that with a wait for the page state replay actually needs cut it to 0.41 s.
 - "0 LLM calls" is measured, not assumed: the benchmark instruments the Anthropic client during replay and counts calls.
 - Cost uses Claude Sonnet 5 list pricing ($2 input / $10 output per 1M tokens).
-- Caveats: discovery is only 3 runs, and everything ran over the internet against a public demo app. Runs are paced 8 s apart (`--delay`) because the demo site's Cloudflare rate limiter temporarily banned a faster burst during development. Raw data: [`benchmarks/results.json`](benchmarks/results.json).
+- Caveats: discovery is only 3 runs, and everything was measured over the internet against the public demo app (a local Docker copy will give different timings). Runs are paced 8 s apart (`--delay`) because the demo site's Cloudflare rate limiter temporarily banned a faster burst during development. Raw data: [`benchmarks/results.json`](benchmarks/results.json).
 
 ## How it works
 
@@ -60,16 +60,27 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-Copy `.env.example` to `.env` and fill it in:
+**Run ParaBank locally (recommended).** The public demo wipes its database every so often, which deletes any account you register and makes runs flaky. Its official Docker image gives you a stable copy with a seeded demo user, so there's nothing to register:
+
+```bash
+docker run -d --name parabank --platform linux/amd64 -p 8080:8080 parasoft/parabank
+```
+
+The first request builds the demo data, which takes a minute or two (the image is `amd64`, so it runs under emulation on Apple Silicon). After that, `http://localhost:8080/parabank` is ready.
+
+Copy `.env.example` to `.env` and fill it in. For the local copy:
 
 ```
 ANTHROPIC_API_KEY=          # only needed for discovery and the benchmark's discovery runs
-PARABANK_USERNAME=
-PARABANK_PASSWORD=
-PARABANK_ACCOUNT_ID=        # the account number shown on Accounts Overview
+PARABANK_BASE_URL=http://localhost:8080/parabank
+PARABANK_USERNAME=john
+PARABANK_PASSWORD=demo
+PARABANK_ACCOUNT_ID=12345
 ```
 
-Register a throwaway ParaBank account at `https://parabank.parasoft.com/parabank/register.htm` (fake data only). The demo database resets periodically, so if login suddenly fails, re-register and update `.env`.
+To use the public demo instead, leave `PARABANK_BASE_URL` empty and register a throwaway account at `https://parabank.parasoft.com/parabank/register.htm` (fake data only). If login suddenly fails there, the database reset: register again and update `.env`.
+
+Artifacts always record the public URL, so they work with either. `PARABANK_BASE_URL` only decides which instance a run drives.
 
 **Replay the included artifacts (no API key needed):**
 
@@ -110,7 +121,7 @@ To connect it to Claude Code, from the repo root:
 claude mcp add rewind -- .venv/bin/python -m src.mcp_server
 ```
 
-Any other MCP client works the same way: run `python -m src.mcp_server` from the repo root over stdio.
+Any other MCP client works the same way: run `python -m src.mcp_server` from the repo root over stdio. The server reads its login and `PARABANK_BASE_URL` from the repo's `.env`, so it targets the same instance as the CLI. With the artifacts in this repo it exposes two tools: `request_loan` and `get_account_overview` (no inputs; returns every account with its balance and the total).
 
 Design choices:
 
@@ -129,6 +140,7 @@ src/
   safety/              allowlist, risk classification, redaction
   escalation/          human handoff
   observability/       structured run logs and screenshots
+  config.py            which ParaBank instance to drive (PARABANK_BASE_URL)
   mcp_server.py        MCP server exposing recorded capabilities as agent tools
   benchmark.py         discovery vs replay benchmark
 artifacts/             saved capability artifacts (JSON)
@@ -140,10 +152,11 @@ evidence/              logs and screenshots from real discovery and replay runs
 
 Honest list of what this is not yet:
 
-- Only tested against ParaBank, with two capabilities (login, request loan).
+- Only tested against ParaBank, with three capabilities (login, request loan, account overview).
 - No retry tier: a transient failure (including a rate limit from the demo site) is an immediate hard failure with diagnostics, not a retried step.
-- Output extraction lives in a small code registry (`src/replay/extractors.py`) rather than in the artifact schema.
+- Output extraction is schema-driven (an `extract` rule per output: a regex or a table's rows), but the rules are written by hand against the page markup, not discovered by Claude. `request_loan` still reads its outputs through a small code registry (`src/replay/extractors.py`) until it is migrated.
+- `get_account_overview` returns every account, so an account with many rows makes a large tool result for an agent. There is no paging or limit yet.
 - Secret redaction infers sensitive fields from parameter names; there is no per-field sensitivity flag in the schema yet.
 - The recorded loan flow uses the default funding account; `from_account_id` is declared as an input but the steps don't select it yet.
 
-Next: retry with backoff, more unit tests with CI against a local mock app, and a second app variant to demonstrate artifact reuse across similar systems.
+Next: retry with backoff, CI that runs the tests and a replay against the ParaBank Docker image, moving `request_loan`'s outputs into its artifact, more capabilities (transfer funds, find transactions), and a second app variant to demonstrate artifact reuse across similar systems.

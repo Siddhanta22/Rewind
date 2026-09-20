@@ -20,7 +20,8 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def base_url() -> str:
-    return os.environ.get("PARABANK_BASE_URL", PUBLIC_BASE_URL).rstrip("/")
+    # `or`, not a default: a blank `PARABANK_BASE_URL=` line in .env arrives as ""
+    return (os.environ.get("PARABANK_BASE_URL") or PUBLIC_BASE_URL).rstrip("/")
 
 
 def base_hostname() -> str | None:
